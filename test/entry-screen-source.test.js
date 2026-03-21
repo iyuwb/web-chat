@@ -11,3 +11,8 @@ test("entry screen retains the prototype-style desktop footer copy", () => {
 test("entry screen uses horizontal mood pills for the desktop prototype layout", () => {
   assert.match(source, /flex-wrap justify-center gap-3/);
 });
+
+test("entry screen no longer keeps a separate mobile-only mood grid or mobile helper copy", () => {
+  assert.doesNotMatch(source, /grid-cols-4/);
+  assert.doesNotMatch(source, /Zero Storage/);
+});
