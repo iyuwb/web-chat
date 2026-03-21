@@ -1,5 +1,5 @@
-import { AnonymousChatApp } from "../components/anonymous-chat-app.jsx";
+import { EntryScreen } from "../components/entry-screen.jsx";
 
-export default function Page() {
-  return <AnonymousChatApp />;
+export default function HomePage() {
+  return <EntryScreen />;
 }

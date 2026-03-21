@@ -14,7 +14,7 @@ export const MOOD_OPTIONS = [
   {
     id: "quiet",
     label: "沉思",
-    icon: "auto_awesome",
+    icon: "sparkles",
     desktopTags: ["沉思", "极简", "午夜"],
     mobileTags: ["夜行者", "想聊电影"],
     chipClass: "from-primary-container to-tertiary-container"
@@ -23,7 +23,7 @@ export const MOOD_OPTIONS = [
     id: "calm",
     label: "冷静",
     icon: "waves",
-    desktopTags: ["爵士乐", "雨天"],
+    desktopTags: ["雨天", "慢热", "留白"],
     mobileTags: ["听雨", "治愈系"],
     chipClass: "from-primary to-primary-fixed-dim"
   },
@@ -31,30 +31,30 @@ export const MOOD_OPTIONS = [
     id: "minimal",
     label: "极简",
     icon: "circle",
-    desktopTags: ["代码", "星空"],
-    mobileTags: ["咖啡", "阅读"],
+    desktopTags: ["代码", "星空", "阅读"],
+    mobileTags: ["咖啡", "夜读"],
     chipClass: "from-tertiary-fixed to-primary-container"
   },
   {
     id: "haze",
-    label: "喧嚣",
-    icon: "grain",
-    desktopTags: ["海浪", "书屋", "远行"],
-    mobileTags: ["观星", "保持安静"],
+    label: "薄雾",
+    icon: "cloud",
+    desktopTags: ["海浪", "远行", "散步"],
+    mobileTags: ["观星", "安静陪伴"],
     chipClass: "from-primary-fixed-dim to-secondary-container"
   }
 ];
 
 export const PLACEHOLDER_ACTIONS = {
-  archive: "按当前隐私设计，历史记录页被故意移除了。",
-  echoes: "长期画像和“我的回响”不会被保存。",
-  profile: "这个应用没有长期身份档案，只有临时代号。",
-  settings: "没有可配置的隐私开关，因为默认就是零存储。",
-  notifications: "当前版本不提供系统通知，避免留下额外状态。",
-  language: "当前只实现中文界面。",
-  help: "输入代号，进入发现页，选择在线访客即可开启匿名对话。",
-  fingerprint: "不会采集指纹信息；这个图标只保留原型视觉。",
-  theme: "深色模式开关仅保留原型样式，当前不切换主题。"
+  archive: "当前版本不保留历史记录，所有消息只在会话进行时临时中转。",
+  echoes: "应用不会保存“我的回响”或长期画像，关闭后即清空。",
+  profile: "这里没有长期身份档案，只有本次会话里临时生成的匿名代号。",
+  settings: "默认就是零存储模式，没有额外隐私开关需要配置。",
+  notifications: "当前版本不接入系统通知，避免产生额外本地状态。",
+  language: "当前界面只提供中文版本。",
+  help: "输入代号后进入发现页，选择在线访客即可发起匿名对话。",
+  fingerprint: "应用不会采集设备指纹，这个入口只保留原型视觉。",
+  theme: "主题切换仅保留视觉占位，不会影响匿名中转逻辑。"
 };
 
 export function getMoodOption(moodId) {
@@ -64,4 +64,46 @@ export function getMoodOption(moodId) {
 export function getPeerAvatar(clientId = "") {
   const seed = [...clientId].reduce((sum, char) => sum + char.charCodeAt(0), 0);
   return PEER_AVATARS[seed % PEER_AVATARS.length];
+}
+
+export function getInitials(name = "EW") {
+  const chars = Array.from(`${name}`.trim() || "EW");
+  return (chars.slice(0, 2).join("") || "EW").toUpperCase();
+}
+
+export function formatRelativeTime(isoString) {
+  const minutes = Math.max(1, Math.floor((Date.now() - new Date(isoString).getTime()) / 60_000));
+
+  if (minutes < 60) {
+    return `活跃于 ${minutes} 分钟前`;
+  }
+
+  return `活跃于 ${Math.floor(minutes / 60)} 小时前`;
+}
+
+export function formatMobilePresence(isoString) {
+  const minutes = Math.max(1, Math.floor((Date.now() - new Date(isoString).getTime()) / 60_000));
+
+  if (minutes < 2) {
+    return "刚刚";
+  }
+
+  return `${minutes} 分钟前`;
+}
+
+export function formatClock(isoString) {
+  return new Date(isoString).toLocaleTimeString("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+export function countVisibleChars(messages) {
+  return messages.reduce((total, message) => {
+    if (message.kind === "system") {
+      return total;
+    }
+
+    return total + Array.from(message.text.replace(/\s+/g, "")).length;
+  }, 0);
 }
