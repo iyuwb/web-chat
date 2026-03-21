@@ -1,4 +1,4 @@
-# SimpleChat
+# ETHEREAL WHISPER
 
 基于 Next.js App Router 的私密匿名聊天应用，支持桌面 Web 和移动 H5，自定义原型来自 `stitch_anonymous_chat_main_page/`。
 

@@ -16,7 +16,7 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "Ethereal Whisper",
+  title: "ETHEREAL WHISPER",
   description: "零数据库、零日志、零持久化的匿名聊天应用。"
 };
 

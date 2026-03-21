@@ -83,8 +83,8 @@ export function DiscoverScreen() {
         <div className="flex min-h-screen flex-1 flex-col lg:h-screen">
           <header className="sticky top-0 z-40 flex h-16 items-center justify-between bg-[#f8fafb]/80 px-6 backdrop-blur-xl lg:border-b lg:border-slate-50 lg:bg-white">
             <div className="lg:hidden">
-              <h1 className="font-headline text-xl font-bold tracking-tight text-on-surface">
-                Whisper
+              <h1 className="font-headline text-base font-bold tracking-[0.08em] text-on-surface sm:text-lg">
+                ETHEREAL WHISPER
               </h1>
               <p className="font-label text-[10px] uppercase tracking-[0.22em] text-on-surface-variant">
                 {getConnectionLabel(connectionState)}
@@ -92,8 +92,8 @@ export function DiscoverScreen() {
             </div>
 
             <div className="hidden items-center space-x-12 lg:flex">
-              <span className="text-2xl font-bold tracking-tight text-slate-900">
-                虚幻对谈
+              <span className="text-xl font-bold tracking-[0.08em] text-slate-900 xl:text-2xl">
+                ETHEREAL WHISPER
               </span>
               <nav className="flex h-full items-center space-x-8">
                 <div className="relative flex h-full items-center">
@@ -269,7 +269,7 @@ export function DiscoverScreen() {
             )}
 
             <footer className="mt-12 hidden border-t border-slate-50 py-8 text-center font-label text-[10px] uppercase tracking-[0.28em] text-slate-400 lg:block">
-              © 2026 Ethereal Whisper · Keep Anonymous · Keep Resonant
+              © 2026 ETHEREAL WHISPER · Keep Anonymous · Keep Resonant
             </footer>
           </main>
         </div>
