@@ -1,0 +1,4 @@
+node_modules/
+npm-debug.log*
+.next/
+stitch_anonymous_chat_main_page/
