@@ -2,17 +2,25 @@
 
 import {
   createContext,
-  startTransition,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useReducer,
   useRef,
-  useState
+  useState,
 } from "react";
-import { useRouter } from "next/navigation";
 
+import {
+  getHashHref,
+  parseHashRoute,
+  resolveHashRoute,
+} from "../lib/hash-route.js";
+import {
+  clearSessionCache,
+  loadSessionCache,
+  saveSessionCache,
+} from "../lib/session-cache.js";
 import { cx } from "../lib/cx.js";
 
 const ChatContext = createContext(null);
@@ -22,7 +30,7 @@ const initialState = {
   self: null,
   peers: [],
   activeChat: null,
-  connectionState: "idle"
+  connectionState: "idle",
 };
 
 function reducer(state, action) {
@@ -34,19 +42,19 @@ function reducer(state, action) {
         self: action.payload.self,
         peers: action.payload.peers,
         activeChat: null,
-        connectionState: "connecting"
+        connectionState: "connecting",
       };
 
     case "connection-state":
       return {
         ...state,
-        connectionState: action.value
+        connectionState: action.value,
       };
 
     case "presence":
       return {
         ...state,
-        peers: action.peers
+        peers: action.peers,
       };
 
     case "chat-started":
@@ -57,8 +65,8 @@ function reducer(state, action) {
           peer: action.payload.peer,
           startedAt: action.payload.startedAt,
           peerTyping: false,
-          messages: []
-        }
+          messages: [],
+        },
       };
 
     case "self-message":
@@ -71,12 +79,15 @@ function reducer(state, action) {
         activeChat: {
           ...state.activeChat,
           peerTyping: false,
-          messages: [...state.activeChat.messages, action.message]
-        }
+          messages: [...state.activeChat.messages, action.message],
+        },
       };
 
     case "peer-message":
-      if (!state.activeChat || state.activeChat.roomId !== action.payload.roomId) {
+      if (
+        !state.activeChat ||
+        state.activeChat.roomId !== action.payload.roomId
+      ) {
         return state;
       }
 
@@ -85,12 +96,15 @@ function reducer(state, action) {
         activeChat: {
           ...state.activeChat,
           peerTyping: false,
-          messages: [...state.activeChat.messages, action.payload.message]
-        }
+          messages: [...state.activeChat.messages, action.payload.message],
+        },
       };
 
     case "peer-typing":
-      if (!state.activeChat || state.activeChat.roomId !== action.payload.roomId) {
+      if (
+        !state.activeChat ||
+        state.activeChat.roomId !== action.payload.roomId
+      ) {
         return state;
       }
 
@@ -98,14 +112,14 @@ function reducer(state, action) {
         ...state,
         activeChat: {
           ...state.activeChat,
-          peerTyping: action.payload.isTyping
-        }
+          peerTyping: action.payload.isTyping,
+        },
       };
 
     case "chat-ended":
       return {
         ...state,
-        activeChat: null
+        activeChat: null,
       };
 
     case "session-reset":
@@ -120,11 +134,27 @@ async function requestJson(url, payload) {
   const response = await fetch(url, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
     },
     cache: "no-store",
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(data?.message ?? "请求失败。");
+  }
+
+  return data;
+}
+
+async function requestSessionSnapshot(sessionId) {
+  const response = await fetch(
+    `/api/session?sessionId=${encodeURIComponent(sessionId)}`,
+    {
+      cache: "no-store",
+    },
+  );
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
@@ -139,7 +169,7 @@ function Toast({ message }) {
     <div
       className={cx(
         "pointer-events-none fixed left-1/2 top-4 z-[90] max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-full bg-on-surface px-4 py-2 text-sm text-on-primary shadow-xl transition duration-200",
-        message ? "translate-y-0 opacity-100" : "-translate-y-6 opacity-0"
+        message ? "translate-y-0 opacity-100" : "-translate-y-6 opacity-0",
       )}
     >
       {message || ""}
@@ -148,13 +178,39 @@ function Toast({ message }) {
 }
 
 export function ChatProvider({ children }) {
-  const router = useRouter();
   const [state, dispatch] = useReducer(reducer, initialState);
+  const [hashRoute, setHashRoute] = useState("entry");
   const [toast, setToast] = useState("");
 
   const eventSourceRef = useRef(null);
   const toastTimerRef = useRef(null);
   const reconnectTimerRef = useRef(null);
+
+  const writeHashUrl = useCallback((nextRoute, { replace = false } = {}) => {
+    const normalizedRoute = parseHashRoute(getHashHref(nextRoute));
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const nextUrl = `${window.location.pathname}${window.location.search}${getHashHref(normalizedRoute)}`;
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+    if (currentUrl === nextUrl) {
+      return;
+    }
+
+    window.history[replace ? "replaceState" : "pushState"](null, "", nextUrl);
+  }, []);
+
+  const updateHashRoute = useCallback(
+    (nextRoute, { replace = false } = {}) => {
+      const normalizedRoute = parseHashRoute(getHashHref(nextRoute));
+      setHashRoute(normalizedRoute);
+      writeHashUrl(normalizedRoute, { replace });
+    },
+    [writeHashUrl],
+  );
 
   const showToast = useCallback((message) => {
     window.clearTimeout(toastTimerRef.current);
@@ -169,26 +225,79 @@ export function ChatProvider({ children }) {
     reconnectTimerRef.current = null;
   }, []);
 
+  const getCachedSessionId = useCallback(() => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+
+    return loadSessionCache(window.sessionStorage)?.sessionId ?? "";
+  }, []);
+
+  const persistSessionId = useCallback((sessionId) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    saveSessionCache(window.sessionStorage, { sessionId });
+  }, []);
+
+  const clearCachedSessionId = useCallback(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    clearSessionCache(window.sessionStorage);
+  }, []);
+
   const closeStream = useCallback(() => {
     eventSourceRef.current?.close();
     eventSourceRef.current = null;
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    const handleHashChange = () => {
+      setHashRoute(parseHashRoute(window.location.hash));
+    };
+
+    handleHashChange();
+    window.addEventListener("hashchange", handleHashChange);
+
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange);
+    };
+  }, []);
+
+  const activeView = resolveHashRoute(hashRoute, {
+    hasSession: Boolean(state.sessionId),
+    hasActiveChat: Boolean(state.activeChat),
+  });
+
   const resetSession = useCallback(
-    (message, nextPath = "/") => {
+    (message, nextRoute = "entry") => {
       clearReconnectTimer();
       closeStream();
+      clearCachedSessionId();
       dispatch({ type: "session-reset" });
 
       if (message) {
         showToast(message);
       }
 
-      startTransition(() => {
-        router.replace(nextPath);
-      });
+      if (nextRoute) {
+        updateHashRoute(nextRoute, { replace: true });
+      }
     },
-    [clearReconnectTimer, closeStream, router, showToast]
+    [
+      clearCachedSessionId,
+      clearReconnectTimer,
+      closeStream,
+      showToast,
+      updateHashRoute,
+    ],
   );
 
   const handleServerEvent = useCallback(
@@ -206,9 +315,7 @@ export function ChatProvider({ children }) {
 
         case "chat-started":
           dispatch({ type: "chat-started", payload });
-          startTransition(() => {
-            router.push("/chat");
-          });
+          updateHashRoute("chat");
           return;
 
         case "message":
@@ -220,9 +327,9 @@ export function ChatProvider({ children }) {
                 id: payload.message.id,
                 kind: "peer",
                 text: payload.message.text,
-                sentAt: payload.message.sentAt
-              }
-            }
+                sentAt: payload.message.sentAt,
+              },
+            },
           });
           return;
 
@@ -231,20 +338,18 @@ export function ChatProvider({ children }) {
             type: "peer-typing",
             payload: {
               roomId: payload.roomId,
-              isTyping: payload.isTyping
-            }
+              isTyping: payload.isTyping,
+            },
           });
           return;
 
         case "chat-ended":
           dispatch({ type: "chat-ended" });
-          startTransition(() => {
-            router.replace("/discover");
-          });
+          updateHashRoute("discover", { replace: true });
           showToast(
             payload.reason === "partner-disconnected"
               ? "对方已离线，当前对话已释放。"
-              : "当前对话已销毁。"
+              : "当前对话已销毁。",
           );
           return;
 
@@ -252,8 +357,20 @@ export function ChatProvider({ children }) {
           return;
       }
     },
-    [clearReconnectTimer, router, showToast]
+    [clearReconnectTimer, showToast, updateHashRoute],
   );
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (window.location.hash === getHashHref(activeView)) {
+      return;
+    }
+
+    writeHashUrl(activeView, { replace: true });
+  }, [activeView, writeHashUrl]);
 
   useEffect(() => {
     if (!state.sessionId) {
@@ -263,7 +380,7 @@ export function ChatProvider({ children }) {
     dispatch({ type: "connection-state", value: "connecting" });
 
     const source = new EventSource(
-      `/api/events?sessionId=${encodeURIComponent(state.sessionId)}`
+      `/api/events?sessionId=${encodeURIComponent(state.sessionId)}`,
     );
 
     eventSourceRef.current = source;
@@ -297,7 +414,13 @@ export function ChatProvider({ children }) {
         eventSourceRef.current = null;
       }
     };
-  }, [clearReconnectTimer, handleServerEvent, resetSession, showToast, state.sessionId]);
+  }, [
+    clearReconnectTimer,
+    handleServerEvent,
+    resetSession,
+    showToast,
+    state.sessionId,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -308,14 +431,13 @@ export function ChatProvider({ children }) {
   }, []);
 
   const disconnectSession = useCallback(
-    async ({ navigateTo = "/", silent = false } = {}) => {
+    async ({ navigateTo = "entry", silent = false } = {}) => {
       const sessionId = state.sessionId;
+      clearCachedSessionId();
 
       if (!sessionId) {
         if (navigateTo) {
-          startTransition(() => {
-            router.replace(navigateTo);
-          });
+          updateHashRoute(navigateTo, { replace: true });
         }
         return;
       }
@@ -335,12 +457,17 @@ export function ChatProvider({ children }) {
       }
 
       if (navigateTo) {
-        startTransition(() => {
-          router.replace(navigateTo);
-        });
+        updateHashRoute(navigateTo, { replace: true });
       }
     },
-    [clearReconnectTimer, closeStream, router, showToast, state.sessionId]
+    [
+      clearCachedSessionId,
+      clearReconnectTimer,
+      closeStream,
+      showToast,
+      state.sessionId,
+      updateHashRoute,
+    ],
   );
 
   const sendAction = useCallback(
@@ -351,10 +478,56 @@ export function ChatProvider({ children }) {
 
       await requestJson("/api/actions", {
         sessionId: state.sessionId,
-        action
+        action,
       });
     },
-    [state.sessionId]
+    [state.sessionId],
+  );
+
+  const createSession = useCallback(
+    async (profile) => {
+      if (state.sessionId) {
+        await disconnectSession({ navigateTo: null, silent: true });
+      }
+
+      const nextSession = await requestJson("/api/session", { profile });
+
+      persistSessionId(nextSession.sessionId);
+      dispatch({ type: "session-created", payload: nextSession });
+      showToast("匿名身份已建立。");
+      updateHashRoute("discover", { replace: true });
+
+      return nextSession;
+    },
+    [
+      disconnectSession,
+      persistSessionId,
+      showToast,
+      state.sessionId,
+      updateHashRoute,
+    ],
+  );
+
+  const restoreSession = useCallback(
+    async (sessionId = getCachedSessionId()) => {
+      const nextSessionId = `${sessionId ?? ""}`.trim();
+
+      if (!nextSessionId) {
+        throw new Error("当前没有可恢复的会话。");
+      }
+
+      if (state.sessionId && state.sessionId !== nextSessionId) {
+        await disconnectSession({ navigateTo: null, silent: true });
+      }
+
+      const restoredSession = await requestSessionSnapshot(nextSessionId);
+
+      persistSessionId(restoredSession.sessionId);
+      dispatch({ type: "session-created", payload: restoredSession });
+
+      return restoredSession;
+    },
+    [disconnectSession, getCachedSessionId, persistSessionId, state.sessionId],
   );
 
   const contextValue = useMemo(
@@ -366,21 +539,11 @@ export function ChatProvider({ children }) {
       connectionState: state.connectionState,
       hasSession: Boolean(state.sessionId),
       hasActiveChat: Boolean(state.activeChat),
+      activeView,
+      navigateTo: updateHashRoute,
       showToast,
-      async createSession(profile) {
-        if (state.sessionId) {
-          await disconnectSession({ navigateTo: null, silent: true });
-        }
-
-        const nextSession = await requestJson("/api/session", { profile });
-
-        dispatch({ type: "session-created", payload: nextSession });
-        showToast("匿名身份已建立。");
-
-        startTransition(() => {
-          router.push("/discover");
-        });
-      },
+      createSession,
+      restoreSession,
       async startChat(peerId) {
         try {
           await sendAction({ type: "start-chat", peerId });
@@ -415,8 +578,8 @@ export function ChatProvider({ children }) {
             id: crypto.randomUUID(),
             kind: "self",
             text: nextText,
-            sentAt: new Date().toISOString()
-          }
+            sentAt: new Date().toISOString(),
+          },
         });
 
         try {
@@ -429,20 +592,23 @@ export function ChatProvider({ children }) {
         }
       },
       disconnectSession,
-      resetSession
+      resetSession,
     }),
     [
+      activeView,
+      createSession,
       disconnectSession,
       resetSession,
-      router,
+      restoreSession,
       sendAction,
       showToast,
       state.activeChat,
       state.connectionState,
       state.peers,
       state.self,
-      state.sessionId
-    ]
+      state.sessionId,
+      updateHashRoute,
+    ],
   );
 
   return (

@@ -30,7 +30,7 @@ function createScheduler() {
         tasks.delete(id);
         task.callback();
       }
-    }
+    },
   };
 }
 
@@ -52,8 +52,8 @@ function setup() {
     hub: createRelayHub({
       now: () => new Date("2026-03-21T10:00:00.000Z"),
       createRoomId: () => `room-${++roomIndex}`,
-      createMessageId: () => `message-${++messageIndex}`
-    })
+      createMessageId: () => `message-${++messageIndex}`,
+    }),
   });
 
   return { broker, scheduler };
@@ -76,7 +76,7 @@ test("createSession returns the caller snapshot and flushes queued presence on s
     codename: "雾岛",
     mood: "calm",
     status: "available",
-    connectedAt: "2026-03-21T10:00:00.000Z"
+    connectedAt: "2026-03-21T10:00:00.000Z",
   });
   assert.deepEqual(beta.peers, [
     {
@@ -84,8 +84,8 @@ test("createSession returns the caller snapshot and flushes queued presence on s
       codename: "雾岛",
       mood: "calm",
       status: "available",
-      connectedAt: "2026-03-21T10:00:00.000Z"
-    }
+      connectedAt: "2026-03-21T10:00:00.000Z",
+    },
   ]);
   assert.deepEqual(delivered.at(-1), {
     type: "presence",
@@ -95,9 +95,9 @@ test("createSession returns the caller snapshot and flushes queued presence on s
         codename: "余烬",
         mood: "quiet",
         status: "available",
-        connectedAt: "2026-03-21T10:00:00.000Z"
-      }
-    ]
+        connectedAt: "2026-03-21T10:00:00.000Z",
+      },
+    ],
   });
 });
 
@@ -128,7 +128,7 @@ test("start-chat fans out chat-started events and refreshes discovery for idle p
 
   broker.dispatchAction(alpha.sessionId, {
     type: "start-chat",
-    peerId: beta.sessionId
+    peerId: beta.sessionId,
   });
 
   assert.deepEqual(alphaEvents[0], {
@@ -140,9 +140,9 @@ test("start-chat fans out chat-started events and refreshes discovery for idle p
       codename: "余烬",
       mood: "quiet",
       status: "chatting",
-      connectedAt: "2026-03-21T10:00:00.000Z"
+      connectedAt: "2026-03-21T10:00:00.000Z",
     },
-    startedAt: "2026-03-21T10:00:00.000Z"
+    startedAt: "2026-03-21T10:00:00.000Z",
   });
   assert.deepEqual(betaEvents[0], {
     type: "chat-started",
@@ -153,13 +153,13 @@ test("start-chat fans out chat-started events and refreshes discovery for idle p
       codename: "雾岛",
       mood: "calm",
       status: "chatting",
-      connectedAt: "2026-03-21T10:00:00.000Z"
+      connectedAt: "2026-03-21T10:00:00.000Z",
     },
-    startedAt: "2026-03-21T10:00:00.000Z"
+    startedAt: "2026-03-21T10:00:00.000Z",
   });
   assert.deepEqual(gammaEvents.at(-1), {
     type: "presence",
-    peers: []
+    peers: [],
   });
 });
 
@@ -181,7 +181,7 @@ test("message and typing actions relay only to the active partner", () => {
 
   broker.dispatchAction(alpha.sessionId, {
     type: "start-chat",
-    peerId: beta.sessionId
+    peerId: beta.sessionId,
   });
 
   alphaEvents.length = 0;
@@ -189,11 +189,11 @@ test("message and typing actions relay only to the active partner", () => {
 
   broker.dispatchAction(alpha.sessionId, {
     type: "typing",
-    isTyping: true
+    isTyping: true,
   });
   broker.dispatchAction(alpha.sessionId, {
     type: "message",
-    text: "你好，陌生人"
+    text: "你好，陌生人",
   });
 
   assert.deepEqual(alphaEvents, []);
@@ -202,7 +202,7 @@ test("message and typing actions relay only to the active partner", () => {
       type: "typing",
       targetClientId: "session-2",
       roomId: "room-1",
-      isTyping: true
+      isTyping: true,
     },
     {
       type: "message",
@@ -212,9 +212,9 @@ test("message and typing actions relay only to the active partner", () => {
         id: "message-1",
         senderId: "session-1",
         text: "你好，陌生人",
-        sentAt: "2026-03-21T10:00:00.000Z"
-      }
-    }
+        sentAt: "2026-03-21T10:00:00.000Z",
+      },
+    },
   ]);
 });
 
@@ -234,16 +234,13 @@ test("subscription teardown waits for a reconnect window before removing the ses
   unsubscribeAlpha();
   scheduler.advanceBy(4_999);
 
-  assert.deepEqual(
-    broker.getSession(alpha.sessionId),
-    {
-      id: "session-1",
-      codename: "雾岛",
-      mood: "calm",
-      status: "available",
-      connectedAt: "2026-03-21T10:00:00.000Z"
-    }
-  );
+  assert.deepEqual(broker.getSession(alpha.sessionId), {
+    id: "session-1",
+    codename: "雾岛",
+    mood: "calm",
+    status: "available",
+    connectedAt: "2026-03-21T10:00:00.000Z",
+  });
 
   const reconnectUnsubscribe = broker.subscribe(alpha.sessionId, () => {});
 
@@ -255,11 +252,11 @@ test("subscription teardown waits for a reconnect window before removing the ses
   scheduler.advanceBy(5_000);
 
   assert.throws(() => broker.getSession(alpha.sessionId), {
-    message: "Client session does not exist."
+    message: "Client session does not exist.",
   });
   assert.deepEqual(betaEvents.at(-1), {
     type: "presence",
-    peers: []
+    peers: [],
   });
 });
 
@@ -282,7 +279,7 @@ test("disconnecting one chat participant releases the other participant back to 
 
   broker.dispatchAction(alpha.sessionId, {
     type: "start-chat",
-    peerId: beta.sessionId
+    peerId: beta.sessionId,
   });
 
   betaEvents.length = 0;
@@ -293,7 +290,7 @@ test("disconnecting one chat participant releases the other participant back to 
   assert.deepEqual(betaEvents[0], {
     type: "chat-ended",
     targetClientId: "session-2",
-    reason: "partner-disconnected"
+    reason: "partner-disconnected",
   });
   assert.deepEqual(gammaEvents.at(-1), {
     type: "presence",
@@ -303,8 +300,35 @@ test("disconnecting one chat participant releases the other participant back to 
         codename: "余烬",
         mood: "quiet",
         status: "available",
-        connectedAt: "2026-03-21T10:00:00.000Z"
-      }
-    ]
+        connectedAt: "2026-03-21T10:00:00.000Z",
+      },
+    ],
+  });
+});
+
+test("restoreSession returns the existing caller snapshot for refresh recovery", () => {
+  const { broker } = setup();
+
+  const alpha = broker.createSession({ codename: "雾岛", mood: "calm" });
+  broker.createSession({ codename: "余烬", mood: "quiet" });
+
+  assert.deepEqual(broker.restoreSession(alpha.sessionId), {
+    sessionId: "session-1",
+    self: {
+      id: "session-1",
+      codename: "雾岛",
+      mood: "calm",
+      status: "available",
+      connectedAt: "2026-03-21T10:00:00.000Z",
+    },
+    peers: [
+      {
+        id: "session-2",
+        codename: "余烬",
+        mood: "quiet",
+        status: "available",
+        connectedAt: "2026-03-21T10:00:00.000Z",
+      },
+    ],
   });
 });

@@ -1,5 +1,5 @@
-import { EntryScreen } from "../components/entry-screen.jsx";
+import { AppShell } from "../components/app-shell.jsx";
 
 export default function HomePage() {
-  return <EntryScreen />;
+  return <AppShell />;
 }

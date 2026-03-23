@@ -1,12 +1,22 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
-import { startTransition, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { MOOD_OPTIONS } from "./prototype-data.js";
 import { useChat } from "./chat-provider.jsx";
+import {
+  getEntryProfileDraftServerSnapshot,
+  getEntryProfileDraftSnapshot,
+  hasStoredEntryProfileDraft,
+  shouldAutoResumeEntryProfile,
+  subscribeEntryProfileDraft,
+  updateEntryProfileDraft,
+} from "../lib/entry-profile-draft.js";
+import { loadSessionCache } from "../lib/session-cache.js";
 import { cx } from "../lib/cx.js";
+
+let hasAttemptedAutoResume = false;
 
 function MoodPill({ label, selected, onClick }) {
   return (
@@ -15,7 +25,7 @@ function MoodPill({ label, selected, onClick }) {
         "rounded-full border px-4 py-2 text-xs font-label font-medium leading-none transition-[background-color,border-color,color,box-shadow] duration-300 sm:px-5 sm:py-2.5 sm:text-sm lg:px-6",
         selected
           ? "border-primary-container/70 bg-primary-container text-on-primary-container shadow-sm"
-          : "border-outline-variant/30 text-on-surface-variant hover:border-surface-container-high hover:bg-surface-container-high"
+          : "border-outline-variant/30 text-on-surface-variant hover:border-surface-container-high hover:bg-surface-container-high",
       )}
       type="button"
       onClick={onClick}
@@ -26,26 +36,76 @@ function MoodPill({ label, selected, onClick }) {
 }
 
 export function EntryScreen() {
-  const router = useRouter();
-  const { activeChat, createSession, hasSession } = useChat();
-  const [codename, setCodename] = useState("");
-  const [mood, setMood] = useState("calm");
+  const { createSession, hasSession, restoreSession } = useChat();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const autoResumeInFlightRef = useRef(false);
+  const hadStoredDraftOnLoadRef = useRef(false);
+  const hadStoredSessionOnLoadRef = useRef(false);
+  const hasCapturedStoredStateRef = useRef(false);
+  const draft = useSyncExternalStore(
+    subscribeEntryProfileDraft,
+    getEntryProfileDraftSnapshot,
+    getEntryProfileDraftServerSnapshot,
+  );
 
   useEffect(() => {
-    if (!hasSession) {
+    if (!hasCapturedStoredStateRef.current && typeof window !== "undefined") {
+      hadStoredDraftOnLoadRef.current = hasStoredEntryProfileDraft(
+        window.localStorage,
+      );
+      hadStoredSessionOnLoadRef.current = Boolean(
+        loadSessionCache(window.sessionStorage)?.sessionId,
+      );
+      hasCapturedStoredStateRef.current = true;
+    }
+
+    if (
+      !shouldAutoResumeEntryProfile({
+        hadStoredDraftOnLoad: hadStoredDraftOnLoadRef.current,
+        hadStoredSessionOnLoad: hadStoredSessionOnLoadRef.current,
+        hasAttemptedAutoResume,
+        hasSession,
+        isAutoResumeInFlight: autoResumeInFlightRef.current,
+      })
+    ) {
       return;
     }
 
-    startTransition(() => {
-      router.replace(activeChat ? "/chat" : "/discover");
-    });
-  }, [activeChat, hasSession, router]);
+    hasAttemptedAutoResume = true;
+    autoResumeInFlightRef.current = true;
+
+    void (async () => {
+      const cachedSessionId =
+        typeof window === "undefined"
+          ? ""
+          : (loadSessionCache(window.sessionStorage)?.sessionId ?? "");
+
+      try {
+        try {
+          if (cachedSessionId) {
+            await restoreSession(cachedSessionId);
+            return;
+          }
+        } catch {
+          // Fall back to recreating the session from the latest stored draft.
+        }
+
+        const latestDraft = getEntryProfileDraftSnapshot();
+
+        await createSession({
+          codename: latestDraft.codename.trim() || "匿名访客",
+          mood: latestDraft.mood,
+        });
+      } finally {
+        autoResumeInFlightRef.current = false;
+      }
+    })();
+  }, [createSession, hasSession, restoreSession]);
 
   async function handleSubmit(event) {
     event.preventDefault();
 
-    if (isSubmitting) {
+    if (isSubmitting || autoResumeInFlightRef.current) {
       return;
     }
 
@@ -53,12 +113,26 @@ export function EntryScreen() {
 
     try {
       await createSession({
-        codename: codename.trim() || "匿名访客",
-        mood
+        codename: draft.codename.trim() || "匿名访客",
+        mood: draft.mood,
       });
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function handleCodenameChange(event) {
+    updateEntryProfileDraft({
+      ...draft,
+      codename: event.target.value,
+    });
+  }
+
+  function handleMoodChange(nextMood) {
+    updateEntryProfileDraft({
+      ...draft,
+      mood: nextMood,
+    });
   }
 
   return (
@@ -85,7 +159,10 @@ export function EntryScreen() {
             </p>
           </div>
 
-          <form className="w-full space-y-7 sm:space-y-9 lg:space-y-12" onSubmit={handleSubmit}>
+          <form
+            className="w-full space-y-7 sm:space-y-9 lg:space-y-12"
+            onSubmit={handleSubmit}
+          >
             <div className="space-y-3">
               <label className="mb-3 block font-label text-[11px] uppercase tracking-[0.2em] text-on-surface-variant sm:mb-4 lg:text-xs">
                 设置你的代号
@@ -95,8 +172,8 @@ export function EntryScreen() {
                 maxLength={24}
                 placeholder="灵魂的称谓..."
                 type="text"
-                value={codename}
-                onChange={(event) => setCodename(event.target.value)}
+                value={draft.codename}
+                onChange={handleCodenameChange}
               />
             </div>
 
@@ -110,8 +187,8 @@ export function EntryScreen() {
                   <MoodPill
                     key={option.id}
                     label={option.label}
-                    selected={option.id === mood}
-                    onClick={() => setMood(option.id)}
+                    selected={option.id === draft.mood}
+                    onClick={() => handleMoodChange(option.id)}
                   />
                 ))}
               </div>
@@ -127,7 +204,10 @@ export function EntryScreen() {
                 <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,33,39,0.16),rgba(20,33,39,0.06))] opacity-0 transition-opacity duration-150 ease-out group-active:opacity-100" />
                 <span className="relative flex items-center gap-2.5 text-[0.72rem] uppercase tracking-[0.24em] sm:gap-3 sm:text-xs lg:text-sm lg:tracking-[0.28em]">
                   唤醒私语
-                  <Sparkles className="h-4 w-4 sm:h-[1.1rem] sm:w-[1.1rem] lg:h-5 lg:w-5" strokeWidth={2} />
+                  <Sparkles
+                    className="h-4 w-4 sm:h-[1.1rem] sm:w-[1.1rem] lg:h-5 lg:w-5"
+                    strokeWidth={2}
+                  />
                 </span>
               </button>
             </div>

@@ -7,7 +7,7 @@ export function createSessionBroker({
   createSessionId = () => randomUUID(),
   reconnectGraceMs = 4_000,
   scheduleTask = (callback, delay) => setTimeout(callback, delay),
-  cancelTask = (taskId) => clearTimeout(taskId)
+  cancelTask = (taskId) => clearTimeout(taskId),
 } = {}) {
   const subscribers = new Map();
   const queuedEvents = new Map();
@@ -55,7 +55,7 @@ export function createSessionBroker({
     for (const client of hub.getState().clients) {
       deliver(client.id, {
         type: "presence",
-        peers: hub.getAvailablePeers(client.id)
+        peers: hub.getAvailablePeers(client.id),
       });
     }
   }
@@ -89,12 +89,22 @@ export function createSessionBroker({
       return {
         sessionId,
         self,
-        peers: hub.getAvailablePeers(sessionId)
+        peers: hub.getAvailablePeers(sessionId),
       };
     },
 
     getSession(sessionId) {
       return hub.getClient(sessionId);
+    },
+
+    restoreSession(sessionId) {
+      hub.getClient(sessionId);
+
+      return {
+        sessionId,
+        self: hub.getClient(sessionId),
+        peers: hub.getAvailablePeers(sessionId),
+      };
     },
 
     subscribe(sessionId, listener) {
@@ -166,6 +176,6 @@ export function createSessionBroker({
 
     disconnectSession(sessionId) {
       finalizeDisconnect(sessionId);
-    }
+    },
   };
 }

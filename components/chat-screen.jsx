@@ -7,10 +7,9 @@ import {
   Shield,
   Smile,
   Trash2,
-  UserRound
+  UserRound,
 } from "lucide-react";
-import { startTransition, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { DesktopSidebar, MobileNav } from "./app-chrome.jsx";
 import { AvatarImage } from "./avatar-image.jsx";
@@ -19,49 +18,37 @@ import {
   countVisibleChars,
   formatClock,
   getMoodOption,
-  getPeerAvatar
+  getPeerAvatar,
 } from "./prototype-data.js";
 import { useChat } from "./chat-provider.jsx";
 import { cx } from "../lib/cx.js";
 
 function getDurationLabel(startedAt) {
-  const minutes = Math.max(1, Math.round((Date.now() - new Date(startedAt).getTime()) / 60_000));
+  const minutes = Math.max(
+    1,
+    Math.round((Date.now() - new Date(startedAt).getTime()) / 60_000),
+  );
   return `${minutes}m`;
 }
 
 export function ChatScreen() {
-  const router = useRouter();
   const {
     activeChat,
     disconnectSession,
     hasActiveChat,
     hasSession,
     leaveChat,
+    navigateTo,
     self,
     sendMessage,
     setTyping,
-    showToast
+    showToast,
   } = useChat();
 
   const [draft, setDraft] = useState("");
   const feedRef = useRef(null);
   const textareaRef = useRef(null);
   const typingTimerRef = useRef(null);
-
-  useEffect(() => {
-    if (!hasSession) {
-      startTransition(() => {
-        router.replace("/");
-      });
-      return;
-    }
-
-    if (!hasActiveChat) {
-      startTransition(() => {
-        router.replace("/discover");
-      });
-    }
-  }, [hasActiveChat, hasSession, router]);
 
   useEffect(() => {
     const feed = feedRef.current;
@@ -87,7 +74,7 @@ export function ChatScreen() {
     return {
       chars: countVisibleChars(activeChat.messages),
       duration: getDurationLabel(activeChat.startedAt),
-      mood: getMoodOption(activeChat.peer.mood)
+      mood: getMoodOption(activeChat.peer.mood),
     };
   }, [activeChat]);
 
@@ -144,13 +131,16 @@ export function ChatScreen() {
         <DesktopSidebar
           codename={self?.codename}
           onPlaceholder={showToast}
-          onRestart={() => disconnectSession({ navigateTo: "/" })}
+          onRestart={() => disconnectSession()}
         />
 
         <main className="flex min-h-screen flex-1 flex-col lg:h-screen lg:overflow-hidden">
           <header className="fixed top-0 z-50 flex h-16 w-full items-center justify-between bg-[#f8fafb]/70 px-6 backdrop-blur-[20px] lg:static lg:border-b lg:border-white/10 lg:bg-white/70">
             <div className="flex items-center gap-3">
-              <MessageCircleMore className="h-5 w-5 text-[#78909C]" strokeWidth={1.8} />
+              <MessageCircleMore
+                className="h-5 w-5 text-[#78909C]"
+                strokeWidth={1.8}
+              />
               <span className="font-headline text-base font-bold tracking-[0.08em] text-[#2a3437] sm:text-lg">
                 ETHEREAL WHISPER
               </span>
@@ -189,7 +179,10 @@ export function ChatScreen() {
                     </div>
 
                     <div className="flex flex-col items-center py-10 opacity-50">
-                      <Shield className="mb-3 h-8 w-8 text-primary" strokeWidth={1.7} />
+                      <Shield
+                        className="mb-3 h-8 w-8 text-primary"
+                        strokeWidth={1.7}
+                      />
                       <p className="font-headline text-lg italic text-on-surface">
                         对话从这里开始
                       </p>
@@ -211,14 +204,21 @@ export function ChatScreen() {
                   }
 
                   if (message.kind === "peer") {
-                    const showIdentity = activeChat.messages[index - 1]?.kind !== "peer";
+                    const showIdentity =
+                      activeChat.messages[index - 1]?.kind !== "peer";
 
                     return (
-                      <div key={message.id} className="flex max-w-[85%] flex-col gap-1">
+                      <div
+                        key={message.id}
+                        className="flex max-w-[85%] flex-col gap-1"
+                      >
                         {showIdentity ? (
                           <div className="mb-2 flex items-center gap-2">
                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-tertiary-container">
-                              <UserRound className="h-4 w-4 text-on-tertiary-container" strokeWidth={2} />
+                              <UserRound
+                                className="h-4 w-4 text-on-tertiary-container"
+                                strokeWidth={2}
+                              />
                             </div>
                             <span className="font-label text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
                               Stranger
@@ -236,7 +236,10 @@ export function ChatScreen() {
                   }
 
                   return (
-                    <div key={message.id} className="ml-auto flex max-w-[85%] flex-col gap-1 items-end">
+                    <div
+                      key={message.id}
+                      className="ml-auto flex max-w-[85%] flex-col gap-1 items-end"
+                    >
                       <div className="rounded-lg rounded-tr-none bg-primary-container p-4 text-on-primary-container shadow-sm lg:px-6 lg:py-4 lg:rounded-[1.5rem] lg:rounded-br-[0.5rem]">
                         <p className="leading-relaxed">{message.text}</p>
                       </div>
@@ -297,7 +300,9 @@ export function ChatScreen() {
                     src={getPeerAvatar(activeChat.peer.id)}
                   />
                 </div>
-                <h3 className="font-headline text-lg font-bold">{activeChat.peer.codename}</h3>
+                <h3 className="font-headline text-lg font-bold">
+                  {activeChat.peer.codename}
+                </h3>
                 <p className="text-sm italic text-on-surface-variant">
                   “零存储的临时同行者”
                 </p>
@@ -356,11 +361,7 @@ export function ChatScreen() {
         active="chat"
         hasActiveChat={hasActiveChat}
         onChat={() => {}}
-        onDiscover={() =>
-          startTransition(() => {
-            router.push("/discover");
-          })
-        }
+        onDiscover={() => navigateTo("discover")}
         onProfile={() => showToast(PLACEHOLDER_ACTIONS.profile)}
       />
     </div>
@@ -371,7 +372,9 @@ function StatCard({ label, value }) {
   return (
     <div className="rounded-2xl bg-surface-container-lowest p-4 shadow-sm">
       <span className="block text-xl font-bold">{value}</span>
-      <span className="text-[10px] uppercase text-on-surface-variant">{label}</span>
+      <span className="text-[10px] uppercase text-on-surface-variant">
+        {label}
+      </span>
     </div>
   );
 }

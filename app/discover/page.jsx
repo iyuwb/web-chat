@@ -1,5 +1,5 @@
-import { DiscoverScreen } from "../../components/discover-screen.jsx";
+import { redirect } from "next/navigation";
 
 export default function DiscoverPage() {
-  return <DiscoverScreen />;
+  redirect("/#/discover");
 }

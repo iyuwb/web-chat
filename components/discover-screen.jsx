@@ -5,10 +5,9 @@ import {
   Bell,
   Fingerprint,
   LoaderCircle,
-  Settings2
+  Settings2,
 } from "lucide-react";
-import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useDeferredValue, useMemo, useState } from "react";
 
 import { DesktopSidebar, MobileNav } from "./app-chrome.jsx";
 import { AvatarImage } from "./avatar-image.jsx";
@@ -17,7 +16,7 @@ import {
   formatMobilePresence,
   formatRelativeTime,
   getMoodOption,
-  getPeerAvatar
+  getPeerAvatar,
 } from "./prototype-data.js";
 import { useChat } from "./chat-provider.jsx";
 import { cx } from "../lib/cx.js";
@@ -36,35 +35,31 @@ function getConnectionLabel(connectionState) {
 }
 
 export function DiscoverScreen() {
-  const router = useRouter();
   const {
     connectionState,
     disconnectSession,
     hasActiveChat,
     hasSession,
+    navigateTo,
     peers,
     self,
     showToast,
-    startChat
+    startChat,
   } = useChat();
 
   const [selectedPeerId, setSelectedPeerId] = useState("");
   const deferredPeers = useDeferredValue(peers);
-
-  useEffect(() => {
-    if (!hasSession) {
-      startTransition(() => {
-        router.replace("/");
-      });
-    }
-  }, [hasSession, router]);
+  const visiblePeers = useMemo(
+    () => deferredPeers.filter((peer) => peer.id !== self?.id),
+    [deferredPeers, self?.id],
+  );
 
   const selectedPeer = useMemo(
     () =>
-      deferredPeers.some((peer) => peer.id === selectedPeerId)
-        ? deferredPeers.find((peer) => peer.id === selectedPeerId) ?? null
+      visiblePeers.some((peer) => peer.id === selectedPeerId)
+        ? (visiblePeers.find((peer) => peer.id === selectedPeerId) ?? null)
         : null,
-    [deferredPeers, selectedPeerId]
+    [selectedPeerId, visiblePeers],
   );
 
   if (!hasSession) {
@@ -77,7 +72,7 @@ export function DiscoverScreen() {
         <DesktopSidebar
           codename={self?.codename}
           onPlaceholder={showToast}
-          onRestart={() => disconnectSession({ navigateTo: "/" })}
+          onRestart={() => disconnectSession()}
         />
 
         <div className="flex min-h-screen flex-1 flex-col lg:h-screen">
@@ -97,7 +92,10 @@ export function DiscoverScreen() {
               </span>
               <nav className="flex h-full items-center space-x-8">
                 <div className="relative flex h-full items-center">
-                  <button className="text-sm font-semibold text-cyan-600" type="button">
+                  <button
+                    className="text-sm font-semibold text-cyan-600"
+                    type="button"
+                  >
                     发现共鸣
                   </button>
                   <div className="absolute bottom-0 left-0 h-1 w-full rounded-t-full bg-cyan-600" />
@@ -152,12 +150,12 @@ export function DiscoverScreen() {
               <div className="mt-3 flex items-center gap-2">
                 <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
                 <p className="text-sm font-medium text-on-surface-variant lg:text-lg lg:font-light">
-                  当前在线的 {deferredPeers.length} 位匿名旅人
+                  当前在线的 {visiblePeers.length} 位匿名旅人
                 </p>
               </div>
             </section>
 
-            {deferredPeers.length === 0 ? (
+            {visiblePeers.length === 0 ? (
               <section className="rounded-[2rem] bg-surface-container-lowest p-10 text-center shadow-ambient lg:rounded-[3rem] lg:p-16">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-tertiary-container/40 lg:h-16 lg:w-16">
                   <LoaderCircle
@@ -175,7 +173,7 @@ export function DiscoverScreen() {
             ) : (
               <section className="space-y-5 lg:space-y-0">
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 xl:gap-8">
-                  {deferredPeers.map((peer) => {
+                  {visiblePeers.map((peer) => {
                     const mood = getMoodOption(peer.mood);
                     const selected = peer.id === selectedPeer?.id;
 
@@ -184,7 +182,7 @@ export function DiscoverScreen() {
                         key={peer.id}
                         className={cx(
                           "group relative flex flex-col rounded-[2rem] border border-slate-50 bg-white p-5 shadow-[0_10px_40px_rgba(0,0,0,0.03)] transition-all duration-500 hover:shadow-[0_20px_60px_rgba(0,0,0,0.06)] lg:rounded-[3rem] lg:p-8",
-                          selected && "ring-2 ring-primary/20"
+                          selected && "ring-2 ring-primary/20",
                         )}
                       >
                         <button
@@ -238,12 +236,14 @@ export function DiscoverScreen() {
                             "mt-6 hidden w-full items-center justify-between rounded-full px-6 py-4 font-medium transition-all lg:flex",
                             selected
                               ? "bg-primary text-on-primary"
-                              : "bg-surface-container-highest text-slate-600 hover:bg-slate-200"
+                              : "bg-surface-container-highest text-slate-600 hover:bg-slate-200",
                           )}
                           type="button"
                           onClick={() => startChat(peer.id)}
                         >
-                          <span className="ml-2 text-sm tracking-wide">开启私语</span>
+                          <span className="ml-2 text-sm tracking-wide">
+                            开启私语
+                          </span>
                           <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                         </button>
                       </article>
@@ -262,7 +262,9 @@ export function DiscoverScreen() {
                         : showToast("请先选择一位在线访客。")
                     }
                   >
-                    {selectedPeer ? `和 ${selectedPeer.codename} 开启私语` : "开启私语"}
+                    {selectedPeer
+                      ? `和 ${selectedPeer.codename} 开启私语`
+                      : "开启私语"}
                   </button>
                 </div>
               </section>
@@ -280,9 +282,7 @@ export function DiscoverScreen() {
         hasActiveChat={hasActiveChat}
         onChat={() =>
           hasActiveChat
-            ? startTransition(() => {
-                router.push("/chat");
-              })
+            ? navigateTo("chat")
             : showToast("当前没有正在进行的对话。")
         }
         onDiscover={() => {}}
