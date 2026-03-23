@@ -10,3 +10,9 @@ const source = readFileSync(
 test("discover screen filters the current user out of the peer list before rendering", () => {
   assert.match(source, /peer\.id !== self\?\.id/);
 });
+
+test("discover screen delegates layout sections to feature subcomponents", () => {
+  assert.match(source, /discover\/discover-header\.jsx/);
+  assert.match(source, /discover\/discover-empty-state\.jsx/);
+  assert.match(source, /discover\/discover-peer-card\.jsx/);
+});

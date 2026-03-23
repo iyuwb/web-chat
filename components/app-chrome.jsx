@@ -11,18 +11,21 @@ import {
   Plus,
   Sparkles,
   UserRound,
-  Waves
+  Waves,
 } from "lucide-react";
 
 import { AvatarImage } from "./avatar-image.jsx";
-import { CURRENT_USER_AVATAR, PLACEHOLDER_ACTIONS } from "./prototype-data.js";
+import {
+  CURRENT_USER_AVATAR,
+  PLACEHOLDER_ACTIONS,
+} from "../lib/chat-ui-data.js";
 import { cx } from "../lib/cx.js";
 
 const MOOD_ICON_BY_NAME = {
   sparkles: Sparkles,
   waves: Waves,
   circle: Circle,
-  cloud: Cloud
+  cloud: Cloud,
 };
 
 export function MoodGlyph({ name, className }) {
@@ -119,7 +122,13 @@ function ChromeNavButton({ icon: Icon, label, onClick }) {
   );
 }
 
-export function MobileNav({ active, hasActiveChat, onDiscover, onChat, onProfile }) {
+export function MobileNav({
+  active,
+  hasActiveChat,
+  onDiscover,
+  onChat,
+  onProfile,
+}) {
   return (
     <nav className="fixed bottom-0 left-0 z-50 flex w-full items-center justify-around rounded-t-[2rem] bg-[#f8fafb] px-8 pb-6 pt-4 shadow-[0_-4px_40px_rgba(42,52,55,0.04)] lg:hidden">
       <MobileNavButton
@@ -145,13 +154,21 @@ export function MobileNav({ active, hasActiveChat, onDiscover, onChat, onProfile
   );
 }
 
-function MobileNavButton({ active, disabled = false, icon: Icon, label, onClick }) {
+function MobileNavButton({
+  active,
+  disabled = false,
+  icon: Icon,
+  label,
+  onClick,
+}) {
   return (
     <button
       className={cx(
         "relative flex h-12 w-12 flex-col items-center justify-center transition-all duration-300 ease-out active:-translate-y-[2px]",
-        active ? "text-[#2a3437]" : "text-[#566164] opacity-50 hover:opacity-100",
-        disabled && "opacity-20"
+        active
+          ? "text-[#2a3437]"
+          : "text-[#566164] opacity-50 hover:opacity-100",
+        disabled && "opacity-20",
       )}
       disabled={disabled}
       type="button"

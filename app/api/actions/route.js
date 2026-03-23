@@ -1,17 +1,8 @@
+import { createJsonResponse } from "../../../lib/api-response.js";
 import { getSessionBroker } from "../../../server/session-broker-store.js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function createJsonResponse(payload, init = {}) {
-  return Response.json(payload, {
-    ...init,
-    headers: {
-      "Cache-Control": "no-store",
-      ...init.headers
-    }
-  });
-}
 
 function getStatusCode(error) {
   if (error?.code === "CLIENT_NOT_FOUND") {
@@ -29,7 +20,7 @@ export async function POST(request) {
   if (!sessionId || !action?.type) {
     return createJsonResponse(
       { ok: false, message: "sessionId and action.type are required." },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -39,7 +30,7 @@ export async function POST(request) {
   } catch (error) {
     return createJsonResponse(
       { ok: false, message: error?.message ?? "Unexpected server error." },
-      { status: getStatusCode(error) }
+      { status: getStatusCode(error) },
     );
   }
 }

@@ -5,4 +5,5 @@ import nextConfig from "../next.config.js";
 
 test("next config enables standalone output for self-hosting", () => {
   assert.equal(nextConfig.output, "standalone");
+  assert.equal(nextConfig.images?.remotePatterns?.length ?? 0, 0);
 });

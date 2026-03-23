@@ -1,3 +1,4 @@
+import { createJsonResponse } from "../../../lib/api-response.js";
 import { getSessionBroker } from "../../../server/session-broker-store.js";
 
 export const runtime = "nodejs";
@@ -9,16 +10,6 @@ function encodeEvent(payload) {
   return encoder.encode(`data: ${JSON.stringify(payload)}\n\n`);
 }
 
-function createJsonResponse(payload, init = {}) {
-  return Response.json(payload, {
-    ...init,
-    headers: {
-      "Cache-Control": "no-store",
-      ...init.headers
-    }
-  });
-}
-
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const sessionId = `${searchParams.get("sessionId") ?? ""}`.trim();
@@ -26,7 +17,7 @@ export async function GET(request) {
   if (!sessionId) {
     return createJsonResponse(
       { ok: false, message: "sessionId is required." },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -37,7 +28,7 @@ export async function GET(request) {
   } catch (error) {
     return createJsonResponse(
       { ok: false, message: error?.message ?? "Session not found." },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -83,7 +74,7 @@ export async function GET(request) {
 
       unsubscribe?.();
       unsubscribe = null;
-    }
+    },
   });
 
   return new Response(stream, {
@@ -91,7 +82,7 @@ export async function GET(request) {
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
       "Content-Type": "text/event-stream; charset=utf-8",
-      "X-Accel-Buffering": "no"
-    }
+      "X-Accel-Buffering": "no",
+    },
   });
 }

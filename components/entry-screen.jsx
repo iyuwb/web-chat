@@ -3,7 +3,6 @@
 import { Sparkles } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import { MOOD_OPTIONS } from "./prototype-data.js";
 import { useChat } from "./chat-provider.jsx";
 import {
   getEntryProfileDraftServerSnapshot,
@@ -13,6 +12,7 @@ import {
   subscribeEntryProfileDraft,
   updateEntryProfileDraft,
 } from "../lib/entry-profile-draft.js";
+import { MOOD_OPTIONS } from "../lib/chat-ui-data.js";
 import { loadSessionCache } from "../lib/session-cache.js";
 import { cx } from "../lib/cx.js";
 
